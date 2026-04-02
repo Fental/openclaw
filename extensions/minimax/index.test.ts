@@ -1,3 +1,5 @@
+import type { StreamFn } from "@mariozechner/pi-agent-core";
+import type { Context, Model } from "@mariozechner/pi-ai";
 import { describe, expect, it } from "vitest";
 import {
   registerProviderPlugins,
@@ -28,5 +30,58 @@ describe("minimax provider hooks", () => {
         modelId: "MiniMax-M2.7",
       } as never),
     ).toBe("tagged");
+  });
+
+  it("owns fast-mode stream wrapping for MiniMax transports", () => {
+    const providers = registerProviderPlugins(minimaxPlugin);
+    const apiProvider = requireRegisteredProvider(providers, "minimax");
+    const portalProvider = requireRegisteredProvider(providers, "minimax-portal");
+
+    let resolvedApiModelId = "";
+    const captureApiModel: StreamFn = (model) => {
+      resolvedApiModelId = String(model.id ?? "");
+      return {} as ReturnType<StreamFn>;
+    };
+    const wrappedApiStream = apiProvider.wrapStreamFn?.({
+      provider: "minimax",
+      modelId: "MiniMax-M2.7",
+      extraParams: { fastMode: true },
+      streamFn: captureApiModel,
+    } as never);
+
+    void wrappedApiStream?.(
+      {
+        api: "anthropic-messages",
+        provider: "minimax",
+        id: "MiniMax-M2.7",
+      } as Model<"anthropic-messages">,
+      { messages: [] } as Context,
+      {},
+    );
+
+    let resolvedPortalModelId = "";
+    const capturePortalModel: StreamFn = (model) => {
+      resolvedPortalModelId = String(model.id ?? "");
+      return {} as ReturnType<StreamFn>;
+    };
+    const wrappedPortalStream = portalProvider.wrapStreamFn?.({
+      provider: "minimax-portal",
+      modelId: "MiniMax-M2.7",
+      extraParams: { fastMode: true },
+      streamFn: capturePortalModel,
+    } as never);
+
+    void wrappedPortalStream?.(
+      {
+        api: "anthropic-messages",
+        provider: "minimax-portal",
+        id: "MiniMax-M2.7",
+      } as Model<"anthropic-messages">,
+      { messages: [] } as Context,
+      {},
+    );
+
+    expect(resolvedApiModelId).toBe("MiniMax-M2.7-highspeed");
+    expect(resolvedPortalModelId).toBe("MiniMax-M2.7-highspeed");
   });
 });
