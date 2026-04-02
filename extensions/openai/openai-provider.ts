@@ -17,7 +17,7 @@ import {
   isOpenAIApiBaseUrl,
   matchesExactOrPrefix,
 } from "./shared.js";
-import { wrapOpenAIProviderStream } from "./stream-hooks.js";
+import { wrapAzureOpenAIProviderStream, wrapOpenAIProviderStream } from "./stream-hooks.js";
 
 const PROVIDER_ID = "openai";
 const OPENAI_GPT_54_MODEL_ID = "gpt-5.4";
@@ -200,6 +200,7 @@ export function buildOpenAIProvider(): ProviderPlugin {
   return {
     id: PROVIDER_ID,
     label: "OpenAI",
+    hookAliases: ["azure-openai", "azure-openai-responses"],
     docsPath: "/providers/models",
     envVars: ["OPENAI_API_KEY"],
     auth: [
@@ -239,7 +240,10 @@ export function buildOpenAIProvider(): ProviderPlugin {
       providerFamily: "openai",
     },
     buildReplayPolicy: (ctx) => buildOpenAIReplayPolicy(ctx),
-    wrapStreamFn: (ctx) => wrapOpenAIProviderStream(ctx),
+    wrapStreamFn: (ctx) =>
+      normalizeProviderId(ctx.provider) === PROVIDER_ID
+        ? wrapOpenAIProviderStream(ctx)
+        : wrapAzureOpenAIProviderStream(ctx),
     supportsXHighThinking: ({ modelId }) => matchesExactOrPrefix(modelId, OPENAI_XHIGH_MODEL_IDS),
     isModernModelRef: ({ modelId }) => matchesExactOrPrefix(modelId, OPENAI_MODERN_MODEL_IDS),
     buildMissingAuthMessage: (ctx) => {
